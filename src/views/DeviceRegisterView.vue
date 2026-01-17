@@ -42,6 +42,7 @@ async function handleSubmit() {
       isRegistered.value = true
     } catch {}
   } catch (err) {
+    console.error(err)
     errorMsg.value = 'Rejestracja nie powiodła się. Sprawdź dane lub token.'
   } finally {
     isSubmitting.value = false

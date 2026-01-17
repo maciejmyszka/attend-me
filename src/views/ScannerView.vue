@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { QrcodeStream } from 'vue-qrcode-reader'
 import { registerAttendanceWithBearer } from '@/api/courseApi'
@@ -8,72 +8,113 @@ import type { User } from '@/api/userApi'
 const route = useRoute()
 const bearer = String(route.params.token || route.query.token || '')
 
-const errorMsg = ref('')
-const lastResult = ref<string | null>(null)
-const scanning = ref(true)
-const devices = ref<MediaDeviceInfo[]>([])
-const selectedDeviceId = ref<string>('')
+const result = ref('')
+const error = ref('')
 const successUser = ref<User | null>(null)
 const successMsg = ref('')
 
-async function listCameras() {
-  try {
-    const all = await navigator.mediaDevices.enumerateDevices()
-    devices.value = all.filter((d) => d.kind === 'videoinput')
-    if (!selectedDeviceId.value && devices.value.length > 0) {
-      selectedDeviceId.value = devices.value[0]?.deviceId ?? ''
+interface DetectedCode {
+  rawValue: string
+  value?: string
+}
+
+function onDetect(detectedCodes: DetectedCode[]) {
+  console.log('Detected codes:', detectedCodes)
+  if (detectedCodes && detectedCodes.length > 0) {
+    const code = detectedCodes[0]
+    if (code && code.rawValue) {
+      const content = code.rawValue
+      result.value = content
+      submitAttendance(content)
     }
-  } catch {
-    // ignore
   }
 }
 
-function onDecode(content: string) {
-  lastResult.value = content
-  scanning.value = false
-  successUser.value = null
-  successMsg.value = ''
-  submitAttendance()
+interface CameraConstraints {
+  facingMode?: string
+  deviceId?: string
 }
 
-function resetScan() {
-  lastResult.value = null
-  scanning.value = true
-  successUser.value = null
-  successMsg.value = ''
+interface ConstraintOption {
+  label: string
+  constraints: CameraConstraints
 }
 
-async function onInit(promise: Promise<void>) {
+const selectedConstraints = ref<CameraConstraints>({ facingMode: 'environment' })
+const constraintOptions = ref<ConstraintOption[]>([
+  { label: 'tylna kamera', constraints: { facingMode: 'environment' } },
+  { label: 'przednia kamera', constraints: { facingMode: 'user' } },
+])
+
+async function onCameraReady() {
   try {
-    await promise
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const videoDevices = devices.filter(({ kind }) => kind === 'videoinput')
+
+    constraintOptions.value = [
+      { label: 'tylna kamera', constraints: { facingMode: 'environment' } },
+      { label: 'przednia kamera', constraints: { facingMode: 'user' } },
+      ...videoDevices.map(({ deviceId, label }) => ({
+        label: label || `Kamera ${deviceId.slice(0, 8)}`,
+        constraints: { deviceId },
+      })),
+    ]
+
+    error.value = ''
   } catch (err) {
-    errorMsg.value = 'Brak dostępu do kamery lub urządzenie nieobsługiwane.'
+    console.error('Failed to enumerate devices:', err)
   }
 }
 
-onMounted(listCameras)
+function onError(err: Error) {
+  console.error('Camera error:', err)
+  error.value = `[${err.name}]: `
 
-async function copyResult() {
-  try {
-    if (lastResult.value) await navigator.clipboard.writeText(lastResult.value)
-  } catch {}
+  if (err.name === 'NotAllowedError') {
+    error.value += 'musisz udzielić uprawnienia do kamery'
+  } else if (err.name === 'NotFoundError') {
+    error.value += 'nie znaleziono kamery w tym urządzeniu'
+  } else if (err.name === 'NotSupportedError') {
+    error.value += 'wymagany bezpieczny kontekst (HTTPS, localhost)'
+  } else if (err.name === 'NotReadableError') {
+    error.value += 'czy kamera jest już używana przez inną aplikację?'
+  } else if (err.name === 'OverconstrainedError') {
+    error.value += 'dostępne kamery nie są odpowiednie'
+  } else if (err.name === 'StreamApiNotSupportedError') {
+    error.value += 'Stream API nie jest obsługiwane w tej przeglądarce'
+  } else if (err.name === 'InsecureContextError') {
+    error.value +=
+      'dostęp do kamery jest dozwolony tylko w bezpiecznym kontekście. Użyj HTTPS lub localhost.'
+  } else {
+    error.value += err.message
+  }
 }
-const trackConstraints = computed(() => {
-  const id = selectedDeviceId.value
-  return id ? { deviceId: { exact: id } } : { facingMode: 'environment' }
-})
-async function submitAttendance() {
+
+async function submitAttendance(content: string) {
   try {
-    errorMsg.value = ''
+    error.value = ''
     successMsg.value = ''
-    const content = lastResult.value || ''
     if (!content) throw new Error('Nieprawidłowy kod QR.')
     const res = await registerAttendanceWithBearer(content, bearer)
     successUser.value = res
     successMsg.value = `Zarejestrowano: ${res.name} ${res.surname}`
   } catch (e) {
-    errorMsg.value = 'Nie udało się zarejestrować obecności.'
+    console.error('Attendance registration failed:', e)
+    error.value = 'Nie udało się zarejestrować obecności.'
   }
+}
+
+function resetScan() {
+  result.value = ''
+  error.value = ''
+  successUser.value = null
+  successMsg.value = ''
+}
+
+async function copyResult() {
+  try {
+    if (result.value) await navigator.clipboard.writeText(result.value)
+  } catch {}
 }
 </script>
 
@@ -85,42 +126,65 @@ async function submitAttendance() {
         <div class="text-xs text-slate-400" v-if="bearer">Token aktywacji skanera</div>
       </div>
 
-      <div class="grid place-items-center">
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-slate-300 mb-2">Wybierz kamerę:</label>
+        <select
+          v-model="selectedConstraints"
+          class="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm"
+        >
+          <option
+            v-for="option in constraintOptions"
+            :key="option.label"
+            :value="option.constraints"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="grid place-items-center mb-4">
         <div class="overflow-hidden rounded-xl bg-black">
           <QrcodeStream
-            :paused="!scanning"
-            :constraints="trackConstraints"
-            @decode="onDecode"
-            @init="onInit"
+            :constraints="selectedConstraints"
+            @detect="onDetect"
+            @error="onError"
+            @camera-on="onCameraReady"
+            class="w-full max-w-md aspect-square"
           />
         </div>
       </div>
 
-      <div class="mt-4">
-        <p v-if="errorMsg" class="text-sm text-rose-500">{{ errorMsg }}</p>
-        <div v-else class="text-sm text-slate-300">
-          <p v-if="lastResult">
-            Odczytano kod:
-            <span class="font-mono text-slate-100 break-all">{{ lastResult }}</span>
-          </p>
-          <p v-else>Umieść kod QR w polu widzenia kamery.</p>
-          <p v-if="successMsg" class="mt-2 text-emerald-400">{{ successMsg }}</p>
+      <div class="space-y-2 mb-4">
+        <p v-if="error" class="text-sm text-rose-500">{{ error }}</p>
+
+        <div v-if="result && !error" class="text-sm text-slate-300">
+          <p>Odczytano kod:</p>
+          <span class="font-mono text-slate-100 break-all bg-slate-800 px-2 py-1 rounded">{{
+            result
+          }}</span>
         </div>
+
+        <p v-if="successMsg" class="text-sm text-emerald-400">{{ successMsg }}</p>
+
+        <p v-if="!result && !error" class="text-sm text-slate-400">
+          Umieść kod QR w polu widzenia kamery.
+        </p>
       </div>
 
-      <div class="mt-4 flex gap-2">
+      <div class="flex gap-2 flex-wrap">
         <button
           type="button"
-          class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-violet-500 text-slate-200 text-sm cursor-pointer"
+          class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-violet-500 text-slate-200 text-sm"
           @click="resetScan"
         >
-          Skanuj ponownie
+          Resetuj
         </button>
         <button
           type="button"
-          class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-sky-500 text-slate-200 text-sm cursor-pointer"
+          class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 hover:border-sky-500 text-slate-200 text-sm"
           @click="copyResult"
-          :disabled="!lastResult"
+          :disabled="!result"
+          :class="{ 'opacity-50 cursor-not-allowed': !result }"
         >
           Skopiuj wynik
         </button>

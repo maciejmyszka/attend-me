@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useSessions } from '@/composables/useSessions'
 import { fmtDate, computePresetRange, type DatePreset } from '@/utils/date'
@@ -26,7 +26,6 @@ const items = computed(() => {
   return []
 })
 
-const sortOrder = ref<'asc' | 'desc'>('desc')
 const sortedItems = computed(() => {
   const arr = [...items.value]
   arr.sort((a, b) => new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime())
@@ -35,6 +34,13 @@ const sortedItems = computed(() => {
 
 const search = ref<string>((route.query.search as string) || '')
 const preset = ref<DatePreset>((route.query.preset as DatePreset) || 'month')
+const sortOrder = ref<'asc' | 'desc'>((route.query.sort as 'asc' | 'desc') || 'desc')
+
+const initializePreset = () => {
+  const currentPreset = (route.query.preset as DatePreset) || 'month'
+  preset.value = currentPreset
+  applyPreset()
+}
 
 const totalPages = computed(() => {
   const src = isStudent.value ? student.value : teacher.value
@@ -75,13 +81,13 @@ watch(search, () => {
   applyPresetDebounced()
 })
 
-watch(
-  preset,
-  () => {
-    applyPreset()
-  },
-  { immediate: true },
-)
+watch(preset, () => {
+  applyPreset()
+})
+
+onMounted(() => {
+  initializePreset()
+})
 
 watch(sortOrder, () => {
   router.replace({
