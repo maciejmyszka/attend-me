@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import type { AttendanceLogItem } from '@/api/courseApi'
 import { resetDevice, getDeviceRegisterToken } from '@/api/deviceApi'
 import { userGet } from '@/api/userApi'

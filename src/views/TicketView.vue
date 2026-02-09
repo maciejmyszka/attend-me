@@ -19,7 +19,7 @@ async function loadTicket() {
     const res = await getAttendanceTicketWithBearer(bearer)
     token.value = res.token
     expires.value = res.expires
-  } catch (e) {
+  } catch {
     errorMsg.value = 'Nie udało się pobrać biletu obecności.'
   } finally {
     loading.value = false

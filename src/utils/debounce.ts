@@ -1,3 +1,5 @@
+// AI GENERATED
+
 export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 300): T {
   let timer: number | undefined
   return function (this: unknown, ...args: any[]) {

@@ -6,7 +6,9 @@ import axios, {
 } from 'axios'
 import router from '../router'
 
-const baseURL = import.meta.env.VITE_API_URL || '/api'
+// AI GENERATED
+
+const baseURL = import.meta.env.VITE_API_URL;
 
 const axiosClient: AxiosInstance = axios.create({
   baseURL,

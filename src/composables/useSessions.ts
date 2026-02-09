@@ -37,7 +37,7 @@ export function useSessions() {
       } else if (isTeacher.value) {
         teacher.value = await getTeacherSessions(teacherRequest.value)
       }
-    } catch (err) {
+    } catch {
       errorMsg.value = 'Nie udało się pobrać sesji.'
     } finally {
       loading.value = false

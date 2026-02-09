@@ -4,7 +4,7 @@ type Props = {
   userLabel?: string
 }
 
-const props = defineProps<Props>()
+const { open, userLabel } = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'confirm'): void
   (e: 'cancel'): void
