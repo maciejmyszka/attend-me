@@ -24,7 +24,7 @@ async function handleSubmit() {
       errorMsg.value = 'Nieprawidłowa odpowiedź logowania.'
     }
   } catch (err) {
-    console.error('Błąd podczas logowania:', err)
+    console.error(err)
     errorMsg.value = 'Logowanie nie powiodło się. Sprawdź dane i spróbuj ponownie.'
   } finally {
     isSubmitting.value = false
