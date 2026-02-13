@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => ({
     // Disable devtools plugin during tests to avoid Vitest startup errors
     mode !== 'test' ? vueDevTools() : undefined,
     tailwindcss(),
-  ].filter(Boolean) as any,
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

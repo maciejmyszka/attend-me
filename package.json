@@ -14,7 +14,8 @@
     "type-check": "vue-tsc --build",
     "lint": "eslint . --ext .vue,.ts,.tsx --fix --cache",
     "format": "prettier --write --experimental-cli src/",
-    "test": "vitest"
+    "test": "vitest",
+    "test:ci": "vitest --run --reporter=json --outputFile=vitest-results.json"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
