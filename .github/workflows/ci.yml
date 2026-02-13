@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,9 +30,23 @@ jobs:
       - name: Build
         run: npm run build
 
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Run tests (CI)
         run: npm run test:ci
-        continue-on-error: true
 
       - name: Upload test results
         if: always()
