@@ -21,6 +21,7 @@ async function handleSubmit() {
       const redirect = (router.currentRoute.value.query.redirect as string) || '/'
       await router.push(redirect)
     } else {
+      console.error('Login failed: No user data returned')
       errorMsg.value = 'Nieprawidłowa odpowiedź logowania.'
     }
   } catch (err) {
