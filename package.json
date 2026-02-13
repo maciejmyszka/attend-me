@@ -15,7 +15,7 @@
     "lint": "eslint . --ext .vue,.ts,.tsx --fix --cache",
     "format": "prettier --write --experimental-cli src/",
     "test": "vitest",
-    "test:ci": "vitest --run --coverage --reporter=json --outputFile=vitest-results.json"
+    "test:ci": "vitest --run --reporter=json --outputFile=vitest-results.json"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
