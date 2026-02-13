@@ -38,7 +38,7 @@ async function handleSubmit() {
       class="w-full max-w-md rounded-xl p-6 bg-slate-900 shadow-xl ring-1 ring-slate-800"
       role="form"
     >
-      <h1 class="text-xl font-semibold mb-4">Zaloguj się</h1>
+      <h1 class="text-xl font-semibold mb-3">Zaloguj się</h1>
 
       <form class="grid gap-3.5 mt-6" @submit.prevent="handleSubmit" novalidate>
         <div>
