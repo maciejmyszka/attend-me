@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests (CI)
+        run: npm run test:ci
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-results
+          path: |
+            vitest-results.json
+            coverage/
+          if-no-files-found: warn
+
+      - name: Publish summary
+        if: always()
+        env:
+          SUMMARY_FILE: vitest-results.json
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ -f "$SUMMARY_FILE" ]; then
+            node -e "
+              const fs = require('fs');
+              const p = process.env.SUMMARY_FILE;
+              const data = JSON.parse(fs.readFileSync(p, 'utf8'));
+              let total=0, passed=0, failed=0, skipped=0;
+              const results = data.testResults || data.results || [];
+              for (const r of results) {
+                const assertions = r.assertionResults || r.results || [];
+                for (const a of assertions) {
+                  total++;
+                  const s = a.status || a.state;
+                  if (s === 'passed' || s === 'pass') passed++;
+                  else if (s === 'failed' || s === 'fail') failed++;
+                  else skipped++;
+                }
+              }
+              const ok = (data.success === true) || (failed === 0 && total > 0);
+              console.log(`Total: ${total}`);
+              console.log(`Passed: ${passed}`);
+              console.log(`Failed: ${failed}`);
+              console.log(`Skipped: ${skipped}`);
+              const lines = [
+                `- Total: ${total}`,
+                `- Passed: ${passed}`,
+                `- Failed: ${failed}`,
+                `- Skipped: ${skipped}`,
+                `- Status: ${ok ? '✅ Success' : '❌ Failure'}`
+              ];
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+            "
+          else
+            echo "- Test results file not found (vitest-results.json)" >> $GITHUB_STEP_SUMMARY
+          fi
